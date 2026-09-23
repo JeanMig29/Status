@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Status TV</title>
+<style>
+  :root {
+    --bg: #0f1216;
+    --card: #181c22;
+    --line: #262b33;
+    --text: #e8ebef;
+    --muted: #8a93a0;
+    --up: #2fbf71;
+    --warn: #e6b422;
+    --down: #e5484d;
+    --paused: #6b7280;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 1.6vw;
+    overflow: hidden;
+    cursor: none;
+    display: flex;
+    flex-direction: column;
+    padding: 3vh 3vw;
+    gap: 3vh;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2vw;
+  }
+  .overall { display: flex; align-items: center; gap: 1.5vw; }
+  .big-dot {
+    width: 4vw; height: 4vw; border-radius: 50%;
+    background: var(--paused);
+    box-shadow: 0 0 0 0.6vw rgba(255,255,255,0.04);
+  }
+  .big-dot.up { background: var(--up); }
+  .big-dot.down { background: var(--down); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  h1 { font-size: 2.8vw; font-weight: 700; }
+  .sub { color: var(--muted); font-size: 1.1vw; margin-top: .3vh; }
+  .clock { text-align: right; }
+  .clock .time { font-size: 3vw; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .clock .date { color: var(--muted); font-size: 1.1vw; }
+
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.6vh;
+    min-height: 0;
+  }
+  .monitor {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-left: 0.5vw solid var(--paused);
+    border-radius: 0.8vw;
+    padding: 1.8vh 1.6vw;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    column-gap: 2vw;
+    row-gap: 1.2vh;
+    flex: 1;
+    max-height: 18vh;
+    align-content: center;
+  }
+  .monitor.up { border-left-color: var(--up); }
+  .monitor.down { border-left-color: var(--down); background: #2a1618; }
+  .name { font-size: 1.7vw; font-weight: 600; display: flex; align-items: center; gap: 1vw; }
+  .state { font-size: 1.1vw; font-weight: 600; padding: .2em .7em; border-radius: 1em; background: var(--paused); color: #fff; }
+  .up .state { background: var(--up); color: #06210f; }
+  .down .state { background: var(--down); }
+  .uptime { text-align: right; font-variant-numeric: tabular-nums; }
+  .uptime b { font-size: 1.7vw; }
+  .uptime span { color: var(--muted); font-size: 1vw; display: block; }
+  .bars { grid-column: 1 / -1; display: flex; gap: 2px; height: 3.2vh; }
+  .bars i { flex: 1; border-radius: 2px; background: var(--paused); }
+  .bars i.green { background: var(--up); }
+  .bars i.blue { background: #3fa46f; }
+  .bars i.yellow { background: var(--warn); }
+  .bars i.orange, .bars i.red { background: var(--down); }
+  .bars i.grey, .bars i.black { background: #3a3f47; }
+
+  footer {
+    display: flex; justify-content: space-between;
+    color: var(--muted); font-size: 1vw;
+  }
+  .stale { color: var(--warn); }
+</style>
+</head>
+<body>
+<header>
+  <div class="overall">
+    <div class="big-dot" id="bigDot"></div>
+    <div>
+      <h1 id="overallText">Chargement…</h1>
+      <div class="sub" id="overallSub"></div>
+    </div>
+  </div>
+  <div class="clock">
+    <div class="time" id="time"></div>
+    <div class="date" id="date"></div>
+  </div>
+</header>
+
+<main id="monitors"></main>
+
+<footer>
+  <span id="lastDown"></span>
+  <span id="updated"></span>
+</footer>
+
+<script>
+  // UptimeRobot public status page API (CORS ouvert, sans cookies)
+  var API = 'https://status.avantdecliquer.com/api/getMonitorList/kOkEkfY6A9';
+  var REFRESH_MS = 60 * 1000;
+  var DAYS_SHOWN = 90;
+
+  var lastSuccess = null;
+
+  function el(id) { return document.getElementById(id); }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function stateOf(m) {
+    if (m.statusClass === 'success') return { cls: 'up', label: 'En ligne' };
+    if (m.statusClass === 'danger') return { cls: 'down', label: 'Hors ligne' };
+    return { cls: 'paused', label: 'En pause' };
+  }
+
+  function fmtDuration(sec) {
+    var h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60);
+    return h ? h + ' h ' + m + ' min' : m + ' min';
+  }
+
+  function fmtDate(s) {
+    // "2026-09-22 17:36:12" (fuseau de la page de status)
+    var d = new Date(s.replace(' ', 'T'));
+    if (isNaN(d)) return s;
+    return d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function fetchPage(page) {
+    return fetch(API + '?page=' + page, { credentials: 'omit', cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      });
+  }
+
+  function fetchAll() {
+    return fetchPage(1).then(function (first) {
+      var total = (first.psp && first.psp.totalMonitors) || first.data.length;
+      var perPage = (first.psp && first.psp.perPage) || total || 1;
+      var pages = Math.ceil(total / perPage);
+      var rest = [];
+      for (var p = 2; p <= pages; p++) rest.push(fetchPage(p));
+      return Promise.all(rest).then(function (others) {
+        others.forEach(function (o) { first.data = first.data.concat(o.data || []); });
+        return first;
+      });
+    });
+  }
+
+  function render(json) {
+    var monitors = json.data || [];
+    var counts = (json.statistics && json.statistics.counts) || {};
+    var down = counts.down != null ? counts.down : monitors.filter(function (m) { return m.statusClass === 'danger'; }).length;
+
+    el('bigDot').className = 'big-dot ' + (down > 0 ? 'down' : 'up');
+    el('overallText').textContent = down > 0
+      ? down + (down > 1 ? ' services hors ligne' : ' service hors ligne')
+      : 'Tout est opérationnel';
+    el('overallSub').textContent = (counts.up != null ? counts.up : monitors.length - down) + ' en ligne · '
+      + (counts.paused || 0) + ' en pause · ' + (counts.total || monitors.length) + ' au total';
+
+    el('monitors').innerHTML = monitors.map(function (m) {
+      var st = stateOf(m);
+      var days = (m.dailyRatios || []).slice(-DAYS_SHOWN);
+      var bars = days.map(function (d) {
+        return '<i class="' + esc(d.color) + '"></i>';
+      }).join('');
+      var r30 = m['30dRatio'] ? m['30dRatio'].ratio : null;
+      var r90 = m['90dRatio'] ? m['90dRatio'].ratio : null;
+      return '<div class="monitor ' + st.cls + '">'
+        + '<div class="name"><span>' + esc(m.name) + '</span><span class="state">' + st.label + '</span></div>'
+        + '<div class="uptime"><b>' + (r30 ? parseFloat(r30).toFixed(2) + ' %' : '–') + '</b>'
+        + '<span>30 j · 90 j : ' + (r90 ? parseFloat(r90).toFixed(2) + ' %' : '–') + '</span></div>'
+        + '<div class="bars">' + bars + '</div>'
+        + '</div>';
+    }).join('');
+
+    var ld = json.statistics && json.statistics.latest_downtime;
+    if (!ld) {
+      // fallback: plus récente interruption parmi les moniteurs
+      monitors.forEach(function (m) {
+        if (m.lastDowntime && (!ld || m.lastDowntime.date > ld.date)) {
+          ld = { date: m.lastDowntime.date, duration: m.lastDowntime.duration, name: m.name };
+        }
+      });
+    }
+    el('lastDown').textContent = ld && ld.date
+      ? 'Dernière interruption : ' + fmtDate(ld.date) + (ld.name ? ' — ' + ld.name : '')
+        + (ld.duration ? ' (' + fmtDuration(ld.duration) + ')' : '')
+      : 'Aucune interruption récente';
+  }
+
+  function updateFooter() {
+    var u = el('updated');
+    if (!lastSuccess) { u.textContent = ''; return; }
+    var age = Math.round((Date.now() - lastSuccess) / 1000);
+    var t = new Date(lastSuccess).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    if (age > REFRESH_MS / 1000 * 3) {
+      u.className = 'stale';
+      u.textContent = '⚠ Données non mises à jour depuis ' + t;
+    } else {
+      u.className = '';
+      u.textContent = 'Mis à jour à ' + t;
+    }
+  }
+
+  function refresh() {
+    fetchAll().then(function (json) {
+      render(json);
+      lastSuccess = Date.now();
+    }).catch(function (e) {
+      if (!lastSuccess) el('overallText').textContent = 'Impossible de charger le status (' + e.message + ')';
+    }).then(updateFooter);
+  }
+
+  function tick() {
+    var now = new Date();
+    el('time').textContent = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    el('date').textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    updateFooter();
+  }
+
+  tick();
+  setInterval(tick, 1000);
+  refresh();
+  setInterval(refresh, REFRESH_MS);
+  // Rechargement complet toutes les 6 h pour éviter les fuites mémoire sur un affichage 24/7
+  setTimeout(function () { location.reload(); }, 6 * 3600 * 1000);
+</script>
+</body>
+</html>
