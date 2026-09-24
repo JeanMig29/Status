@@ -6,12 +6,13 @@
 <title>Status TV</title>
 <style>
   :root {
-    --bg: #0f1216;
-    --card: #181c22;
-    --line: #262b33;
-    --text: #e8ebef;
+    --bg: #0b0e12;
+    --card: #151a21;
+    --line: #232a33;
+    --text: #eef1f4;
     --muted: #8a93a0;
     --up: #2fbf71;
+    --good: #3fa46f;
     --warn: #e6b422;
     --down: #e5484d;
     --paused: #6b7280;
@@ -22,85 +23,170 @@
     background: var(--bg);
     color: var(--text);
     font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    font-size: 1.6vw;
     overflow: hidden;
     cursor: none;
     display: flex;
     flex-direction: column;
-    padding: 3vh 3vw;
-    gap: 3vh;
   }
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 2vw;
-  }
-  .overall { display: flex; align-items: center; gap: 1.5vw; }
-  .big-dot {
-    width: 4vw; height: 4vw; border-radius: 50%;
-    background: var(--paused);
-    box-shadow: 0 0 0 0.6vw rgba(255,255,255,0.04);
-  }
-  .big-dot.up { background: var(--up); }
-  .big-dot.down { background: var(--down); animation: pulse 1.2s infinite; }
-  @keyframes pulse { 50% { opacity: .45; } }
-  h1 { font-size: 2.8vw; font-weight: 700; }
-  .sub { color: var(--muted); font-size: 1.1vw; margin-top: .3vh; }
-  .clock { text-align: right; }
-  .clock .time { font-size: 3vw; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .clock .date { color: var(--muted); font-size: 1.1vw; }
 
-  main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 1.6vh;
-    min-height: 0;
+  /* Bandeau d'état global */
+  .banner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 2.5vh 3vw;
+    background: linear-gradient(90deg, rgba(47,191,113,.22), rgba(47,191,113,.04));
+    border-bottom: 0.4vh solid var(--up);
+    transition: background .4s;
   }
-  .monitor {
+  .banner.down {
+    background: linear-gradient(90deg, rgba(229,72,77,.35), rgba(229,72,77,.08));
+    border-bottom-color: var(--down);
+    animation: flash 2s infinite;
+  }
+  @keyframes flash { 50% { background-color: rgba(229,72,77,.15); } }
+  .banner-left { display: flex; align-items: center; gap: 1.6vw; }
+  .banner-icon {
+    width: 5vw; height: 5vw; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 3vw; font-weight: 700; color: #06210f; background: var(--up);
+  }
+  .banner.down .banner-icon { background: var(--down); color: #fff; }
+  .banner h1 { font-size: 3.2vw; font-weight: 700; line-height: 1.1; }
+  .banner .sub { color: var(--muted); font-size: 1.2vw; margin-top: .4vh; }
+  .clock { text-align: right; }
+  .clock .time { font-size: 3.4vw; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+  .clock .date { color: var(--muted); font-size: 1.2vw; margin-top: .6vh; text-transform: capitalize; }
+
+  /* Vues en rotation */
+  .stage { flex: 1; position: relative; min-height: 0; }
+  .view {
+    position: absolute; inset: 0;
+    padding: 3vh 3vw;
+    opacity: 0; transition: opacity .8s;
+    display: flex; flex-direction: column; gap: 2.5vh;
+  }
+  .view.active { opacity: 1; }
+  .view-title { font-size: 1.3vw; color: var(--muted); text-transform: uppercase; letter-spacing: .15em; }
+
+  /* Vue 1 : tuiles */
+  .tiles {
+    flex: 1; min-height: 0;
+    display: grid; gap: 2vw;
+    grid-template-columns: repeat(var(--cols, 3), 1fr);
+    grid-auto-rows: 1fr;
+  }
+  .tile {
     background: var(--card);
     border: 1px solid var(--line);
-    border-left: 0.5vw solid var(--paused);
-    border-radius: 0.8vw;
-    padding: 1.8vh 1.6vw;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
-    column-gap: 2vw;
-    row-gap: 1.2vh;
-    flex: 1;
-    max-height: 18vh;
-    align-content: center;
+    border-top: 0.8vh solid var(--up);
+    border-radius: 1vw;
+    padding: 2.5vh 1.8vw;
+    display: flex; flex-direction: column; justify-content: space-between;
+    min-height: 0;
   }
-  .monitor.up { border-left-color: var(--up); }
-  .monitor.down { border-left-color: var(--down); background: #2a1618; }
-  .name { font-size: 1.7vw; font-weight: 600; display: flex; align-items: center; gap: 1vw; }
-  .state { font-size: 1.1vw; font-weight: 600; padding: .2em .7em; border-radius: 1em; background: var(--paused); color: #fff; }
-  .up .state { background: var(--up); color: #06210f; }
-  .down .state { background: var(--down); }
-  .uptime { text-align: right; font-variant-numeric: tabular-nums; }
-  .uptime b { font-size: 1.7vw; }
-  .uptime span { color: var(--muted); font-size: 1vw; display: block; }
-  .bars { grid-column: 1 / -1; display: flex; gap: 2px; height: 3.2vh; }
-  .bars i { flex: 1; border-radius: 2px; background: var(--paused); }
-  .bars i.green { background: var(--up); }
-  .bars i.blue { background: #3fa46f; }
-  .bars i.yellow { background: var(--warn); }
-  .bars i.orange, .bars i.red { background: var(--down); }
-  .bars i.grey, .bars i.black { background: #3a3f47; }
+  .tile.down { border-top-color: var(--down); background: #2a1417; }
+  .tile.paused { border-top-color: var(--paused); opacity: .6; }
+  .tile-head { display: flex; align-items: center; gap: 1vw; }
+  .dot { width: 1.6vw; height: 1.6vw; border-radius: 50%; background: var(--up); flex: none; }
+  .tile.down .dot { background: var(--down); animation: pulse 1s infinite; }
+  .tile.paused .dot { background: var(--paused); }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .tile-name { font-size: 2vw; font-weight: 600; line-height: 1.15; }
+  .tile-state { font-size: 1.2vw; color: var(--up); font-weight: 600; margin-top: .3vh; }
+  .tile.down .tile-state { color: var(--down); }
+  .tile.paused .tile-state { color: var(--paused); }
+  .tile-uptime { font-size: 4.2vw; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .tile-uptime small { font-size: 1.1vw; color: var(--muted); font-weight: 400; display: block; margin-top: .6vh; }
+  .spark { display: flex; gap: 3px; height: 3.5vh; }
+  .spark i { flex: 1; border-radius: 2px; }
 
-  footer {
-    display: flex; justify-content: space-between;
-    color: var(--muted); font-size: 1vw;
+  /* Service mis en avant : occupe la case vide de la grille (2 lignes), cadre dégradé animé */
+  .tile.featured {
+    grid-row: span 2;
+    position: relative;
+    border: 0.25vw solid transparent;
+    background:
+      linear-gradient(160deg, #1a2330, var(--card) 60%) padding-box,
+      linear-gradient(135deg, var(--up), #3aa0ff, var(--up)) border-box;
+    background-size: 100% 100%, 300% 300%;
+    animation: sweep 8s ease-in-out infinite, glow 4s ease-in-out infinite;
+    padding: 3vh 2.2vw;
   }
+  .tile.featured.down {
+    background:
+      linear-gradient(160deg, #3a171b, #2a1417 60%) padding-box,
+      linear-gradient(135deg, var(--down), #ff9a4d, var(--down)) border-box;
+    background-size: 100% 100%, 300% 300%;
+  }
+  @keyframes sweep { 50% { background-position: 0 0, 100% 100%; } }
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 2vw rgba(58,160,255,.10); }
+    50% { box-shadow: 0 0 3.5vw rgba(58,160,255,.28); }
+  }
+  .badge {
+    position: absolute; top: 2vh; right: 1.6vw;
+    font-size: .95vw; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    padding: .35em .9em; border-radius: 2em;
+    color: #cfe6ff; background: rgba(58,160,255,.16); border: 1px solid rgba(58,160,255,.45);
+  }
+  .tile.featured .tile-name { font-size: 2.6vw; }
+  .tile.featured .dot { width: 2vw; height: 2vw; box-shadow: 0 0 0 .5vw rgba(47,191,113,.18); }
+  .tile.featured.down .dot { box-shadow: 0 0 0 .5vw rgba(229,72,77,.25); }
+  .tile.featured .tile-uptime { font-size: 6vw; }
+  .tile.featured .spark { height: 6vh; }
+  .featured-info { font-size: 1.1vw; color: var(--muted); line-height: 1.5; }
+  .featured-info b { color: var(--text); font-weight: 600; }
+
+  .heat-name.featured::before { content: '★ '; color: #3aa0ff; }
+  .heat-row.featured { outline: 2px solid rgba(58,160,255,.55); outline-offset: 3px; border-radius: 3px; }
+
+  /* Vue 2 : historique */
+  .heat { display: grid; grid-template-columns: auto 1fr auto; column-gap: 1.5vw; row-gap: 1.4vh; align-items: center; }
+  .heat-name { font-size: 1.4vw; font-weight: 600; white-space: nowrap; }
+  .heat-row { display: flex; gap: 2px; height: 3.6vh; }
+  .heat-row i { flex: 1; border-radius: 2px; }
+  .heat-pct { font-size: 1.4vw; font-variant-numeric: tabular-nums; text-align: right; }
+  .heat-months { display: flex; font-size: 1vw; color: var(--muted); }
+  .heat-months span { flex: none; }
+  .legend { display: flex; gap: 2vw; font-size: 1vw; color: var(--muted); }
+  .legend i { display: inline-block; width: 1vw; height: 1vw; border-radius: 2px; vertical-align: middle; margin-right: .4vw; }
+
+  .incidents { min-height: 0; display: flex; flex-direction: column; gap: .5vh; }
+  .incident {
+    display: grid; grid-template-columns: 1vw 9vw 1fr auto; gap: 1vw; align-items: center;
+    padding: .5vh .8vw; font-size: 1vw; line-height: 1.3;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .incident:last-child { border-bottom: 0; }
+  .incident .mark { width: .7vw; height: .7vw; border-radius: 50%; background: var(--warn); }
+  .incident.bad .mark { background: var(--down); }
+  .incident .when { font-weight: 600; text-transform: capitalize; }
+  .incident .who { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  .incident .dur { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .empty { color: var(--muted); font-size: 1vw; }
+
+  .c-green { background: var(--up); }
+  .c-blue { background: var(--good); }
+  .c-yellow { background: var(--warn); }
+  .c-orange, .c-red { background: var(--down); }
+  .c-grey, .c-black { background: #2c323b; }
+
+  /* Pied de page */
+  footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2vh 3vw; font-size: 1vw; color: var(--muted);
+    border-top: 1px solid var(--line);
+  }
+  .progress { flex: 0 0 20vw; height: .5vh; background: var(--line); border-radius: 1vh; overflow: hidden; }
+  .progress div { height: 100%; width: 0; background: var(--muted); }
   .stale { color: var(--warn); }
 </style>
 </head>
 <body>
-<header>
-  <div class="overall">
-    <div class="big-dot" id="bigDot"></div>
+
+<div class="banner" id="banner">
+  <div class="banner-left">
+    <div class="banner-icon" id="bannerIcon">…</div>
     <div>
       <h1 id="overallText">Chargement…</h1>
       <div class="sub" id="overallSub"></div>
@@ -110,22 +196,58 @@
     <div class="time" id="time"></div>
     <div class="date" id="date"></div>
   </div>
-</header>
+</div>
 
-<main id="monitors"></main>
+<div class="stage">
+  <section class="view active" id="viewTiles">
+    <div class="view-title">État des services · 30 derniers jours</div>
+    <div class="tiles" id="tiles"></div>
+  </section>
+
+  <section class="view" id="viewHistory">
+    <div class="view-title">Disponibilité · 90 derniers jours</div>
+    <div class="heat" id="heat"></div>
+    <div class="legend">
+      <span><i class="c-green"></i>100 %</span>
+      <span><i class="c-blue"></i>&gt; 98 %</span>
+      <span><i class="c-yellow"></i>&gt; 95 %</span>
+      <span><i class="c-red"></i>&lt; 95 %</span>
+    </div>
+    <div class="view-title">Derniers incidents</div>
+    <div class="incidents" id="incidents"></div>
+  </section>
+</div>
 
 <footer>
-  <span id="lastDown"></span>
+  <span id="viewName">Vue 1/2</span>
+  <div class="progress"><div id="progress"></div></div>
   <span id="updated"></span>
 </footer>
 
 <script>
   // UptimeRobot public status page API (CORS ouvert, sans cookies)
   var API = 'https://status.avantdecliquer.com/api/getMonitorList/kOkEkfY6A9';
-  var REFRESH_MS = 60 * 1000;
-  var DAYS_SHOWN = 90;
+  var REFRESH_MS = 1 * 1000;
+  var ROTATE_MS = 15 * 1000;     // durée d'affichage de chaque vue
+  var MAX_INCIDENTS = 5;
+
+  // Noms courts affichés à l'écran (optionnel). Sinon : préfixe "ADC - " / "Hucency - " retiré.
+  var SHORT_NAMES = {
+    'ADC - E-learning page de type 1': 'E-learning · Type 1',
+    'ADC - E-learning page de type 2': 'E-learning · Type 2',
+    'ADC - E-learning page de type 3': 'E-learning · Type 3',
+    "ADC - Sensibilisation sur l'instant V2": "Sensibilisation sur l'instant",
+    'Hucency - Espace Admin': 'Espace Admin'
+  };
+
+  // Service mis en avant (nom exact dans UptimeRobot). Mettre '' pour désactiver.
+  var FEATURED = 'Hucency - Espace Admin';
 
   var lastSuccess = null;
+  var anyDown = false;
+  var views = ['viewTiles', 'viewHistory'];
+  var current = 0;
+  var viewStart = Date.now();
 
   function el(id) { return document.getElementById(id); }
 
@@ -135,22 +257,27 @@
     });
   }
 
+  function shortName(n) {
+    return SHORT_NAMES[n] || String(n).replace(/^[^-]+ - /, '');
+  }
+
   function stateOf(m) {
     if (m.statusClass === 'success') return { cls: 'up', label: 'En ligne' };
     if (m.statusClass === 'danger') return { cls: 'down', label: 'Hors ligne' };
     return { cls: 'paused', label: 'En pause' };
   }
 
-  function fmtDuration(sec) {
-    var h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60);
-    return h ? h + ' h ' + m + ' min' : m + ' min';
+  function pct(r) { return r ? parseFloat(r.ratio).toFixed(2).replace('.', ',') + ' %' : '–'; }
+
+  function fmtMinutes(min) {
+    if (min < 60) return Math.max(1, Math.round(min)) + ' min';
+    var h = Math.floor(min / 60), m = Math.round(min % 60);
+    return h + ' h ' + (m ? m + ' min' : '');
   }
 
-  function fmtDate(s) {
-    // "2026-09-22 17:36:12" (fuseau de la page de status)
-    var d = new Date(s.replace(' ', 'T'));
-    if (isNaN(d)) return s;
-    return d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  function dayLabel(iso) {
+    var d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
   }
 
   function fetchPage(page) {
@@ -175,61 +302,136 @@
     });
   }
 
+  function renderBanner(monitors, counts) {
+    var down = monitors.filter(function (m) { return m.statusClass === 'danger'; });
+    anyDown = down.length > 0;
+    el('banner').className = 'banner' + (anyDown ? ' down' : '');
+    el('bannerIcon').textContent = anyDown ? '!' : '✓';
+    el('overallText').textContent = anyDown
+      ? (down.length > 1 ? down.length + ' services hors ligne' : shortName(down[0].name) + ' est hors ligne')
+      : 'Tous les services sont opérationnels';
+    el('overallSub').textContent = (counts.up != null ? counts.up : monitors.length - down.length) + ' en ligne · '
+      + (counts.paused || 0) + ' en pause · ' + (counts.total || monitors.length) + ' surveillés';
+  }
+
+  function renderTiles(monitors) {
+    // Service mis en avant en premier (colonne de gauche), puis les services en panne
+    function rank(m) { return m.name === FEATURED ? 0 : m.statusClass === 'danger' ? 1 : 2; }
+    var sorted = monitors.slice().sort(function (a, b) { return rank(a) - rank(b); });
+    var hasFeatured = sorted.length > 1 && sorted[0].name === FEATURED;
+    // La tuile mise en avant compte pour 2 cases (elle occupe 2 lignes)
+    var cells = sorted.length + (hasFeatured ? 1 : 0);
+    var cols = cells <= 4 ? Math.max(cells, 1) : Math.ceil(cells / 2);
+    el('tiles').style.setProperty('--cols', cols);
+    el('tiles').innerHTML = sorted.map(function (m, i) {
+      var st = stateOf(m);
+      var featured = hasFeatured && i === 0;
+      var spark = (m.dailyRatios || []).slice(featured ? -60 : -30).map(function (d) {
+        return '<i class="c-' + esc(d.color) + '"></i>';
+      }).join('');
+      var info = '';
+      if (featured) {
+        var ld = m.lastDowntime;
+        info = '<div class="featured-info">'
+          + 'Disponibilité 90 jours : <b>' + pct(m['90dRatio']) + '</b><br>'
+          + (ld && ld.date
+            ? 'Dernière interruption : <b>' + esc(dayLabel(ld.date.slice(0, 10))) + ' à ' + esc(ld.date.slice(11, 16)) + '</b>'
+              + (ld.duration ? ' (' + fmtMinutes(ld.duration / 60) + ')' : '')
+            : 'Aucune interruption récente')
+          + '</div>';
+      }
+      return '<div class="tile ' + st.cls + (featured ? ' featured' : '') + '">'
+        + (featured ? '<div class="badge">★ Prioritaire</div>' : '')
+        + '<div class="tile-head"><div class="dot"></div><div>'
+        + '<div class="tile-name">' + esc(shortName(m.name)) + '</div>'
+        + '<div class="tile-state">' + st.label + '</div></div></div>'
+        + '<div class="tile-uptime">' + pct(m['30dRatio']) + '<small>disponibilité 30 jours</small></div>'
+        + info
+        + '<div class="spark">' + spark + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  function renderHistory(monitors, days) {
+    var html = '';
+    // Étiquettes de mois au-dessus de la grille
+    if (days && days.length) {
+      var months = [], prev = null;
+      days.forEach(function (d, i) {
+        var m = d.slice(0, 7);
+        if (m !== prev) { months.push({ i: i, label: new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { month: 'long' }) }); prev = m; }
+      });
+      html += '<div></div><div class="heat-months">' + months.map(function (m, k) {
+        var next = k + 1 < months.length ? months[k + 1].i : days.length;
+        return '<span style="width:' + ((next - m.i) / days.length * 100) + '%">' + m.label + '</span>';
+      }).join('') + '</div><div></div>';
+    }
+    monitors.forEach(function (m) {
+      var f = m.name === FEATURED ? ' featured' : '';
+      html += '<div class="heat-name' + f + '">' + esc(shortName(m.name)) + '</div>'
+        + '<div class="heat-row' + f + '">' + (m.dailyRatios || []).map(function (d) {
+          return '<i class="c-' + esc(d.color) + '"></i>';
+        }).join('') + '</div>'
+        + '<div class="heat-pct">' + pct(m['90dRatio']) + '</div>';
+    });
+    el('heat').innerHTML = html;
+
+    // Incidents : jours où au moins un service n'était pas à 100 %, regroupés par date
+    var byDay = {};
+    monitors.forEach(function (m) {
+      (m.dailyRatios || []).forEach(function (d) {
+        var r = parseFloat(d.ratio);
+        if (isNaN(r) || r >= 100) return;
+        var min = (100 - r) / 100 * 1440;
+        var e = byDay[d.date] || (byDay[d.date] = { date: d.date, names: [], maxMin: 0, worst: 100 });
+        e.names.push(shortName(m.name));
+        e.maxMin = Math.max(e.maxMin, min);
+        e.worst = Math.min(e.worst, r);
+      });
+    });
+    var list = Object.keys(byDay).sort().reverse()
+      .map(function (k) { return byDay[k]; })
+      .filter(function (e) { return e.maxMin >= 5; }) // ignore les micro-coupures < 5 min
+      .slice(0, MAX_INCIDENTS);
+    el('incidents').innerHTML = list.length ? list.map(function (e) {
+      var who = e.names.length === monitors.length ? 'Tous les services' : e.names.join(', ');
+      return '<div class="incident' + (e.worst < 95 ? ' bad' : '') + '">'
+        + '<span class="mark"></span>'
+        + '<span class="when">' + dayLabel(e.date) + '</span>'
+        + '<span class="who">' + esc(who) + '</span>'
+        + '<span class="dur">≈ ' + fmtMinutes(e.maxMin) + '</span></div>';
+    }).join('') : '<div class="empty">Aucun incident sur la période 🎉</div>';
+  }
+
   function render(json) {
     var monitors = json.data || [];
     var counts = (json.statistics && json.statistics.counts) || {};
-    var down = counts.down != null ? counts.down : monitors.filter(function (m) { return m.statusClass === 'danger'; }).length;
+    renderBanner(monitors, counts);
+    renderTiles(monitors);
+    renderHistory(monitors, json.days);
+  }
 
-    el('bigDot').className = 'big-dot ' + (down > 0 ? 'down' : 'up');
-    el('overallText').textContent = down > 0
-      ? down + (down > 1 ? ' services hors ligne' : ' service hors ligne')
-      : 'Tout est opérationnel';
-    el('overallSub').textContent = (counts.up != null ? counts.up : monitors.length - down) + ' en ligne · '
-      + (counts.paused || 0) + ' en pause · ' + (counts.total || monitors.length) + ' au total';
+  function showView(i) {
+    current = i;
+    viewStart = Date.now();
+    views.forEach(function (id, k) { el(id).className = 'view' + (k === i ? ' active' : ''); });
+    el('viewName').textContent = 'Vue ' + (i + 1) + '/' + views.length;
+  }
 
-    el('monitors').innerHTML = monitors.map(function (m) {
-      var st = stateOf(m);
-      var days = (m.dailyRatios || []).slice(-DAYS_SHOWN);
-      var bars = days.map(function (d) {
-        return '<i class="' + esc(d.color) + '"></i>';
-      }).join('');
-      var r30 = m['30dRatio'] ? m['30dRatio'].ratio : null;
-      var r90 = m['90dRatio'] ? m['90dRatio'].ratio : null;
-      return '<div class="monitor ' + st.cls + '">'
-        + '<div class="name"><span>' + esc(m.name) + '</span><span class="state">' + st.label + '</span></div>'
-        + '<div class="uptime"><b>' + (r30 ? parseFloat(r30).toFixed(2) + ' %' : '–') + '</b>'
-        + '<span>30 j · 90 j : ' + (r90 ? parseFloat(r90).toFixed(2) + ' %' : '–') + '</span></div>'
-        + '<div class="bars">' + bars + '</div>'
-        + '</div>';
-    }).join('');
-
-    var ld = json.statistics && json.statistics.latest_downtime;
-    if (!ld) {
-      // fallback: plus récente interruption parmi les moniteurs
-      monitors.forEach(function (m) {
-        if (m.lastDowntime && (!ld || m.lastDowntime.date > ld.date)) {
-          ld = { date: m.lastDowntime.date, duration: m.lastDowntime.duration, name: m.name };
-        }
-      });
-    }
-    el('lastDown').textContent = ld && ld.date
-      ? 'Dernière interruption : ' + fmtDate(ld.date) + (ld.name ? ' — ' + ld.name : '')
-        + (ld.duration ? ' (' + fmtDuration(ld.duration) + ')' : '')
-      : 'Aucune interruption récente';
+  function rotate() {
+    // En cas de panne, on reste sur les tuiles
+    if (anyDown) { if (current !== 0) showView(0); viewStart = Date.now(); return; }
+    if (Date.now() - viewStart >= ROTATE_MS) showView((current + 1) % views.length);
   }
 
   function updateFooter() {
     var u = el('updated');
+    el('progress').style.width = anyDown ? '0' : Math.min(100, (Date.now() - viewStart) / ROTATE_MS * 100) + '%';
     if (!lastSuccess) { u.textContent = ''; return; }
-    var age = Math.round((Date.now() - lastSuccess) / 1000);
+    var age = (Date.now() - lastSuccess) / 1000;
     var t = new Date(lastSuccess).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    if (age > REFRESH_MS / 1000 * 3) {
-      u.className = 'stale';
-      u.textContent = '⚠ Données non mises à jour depuis ' + t;
-    } else {
-      u.className = '';
-      u.textContent = 'Mis à jour à ' + t;
-    }
+    u.className = age > REFRESH_MS / 1000 * 3 ? 'stale' : '';
+    u.textContent = age > REFRESH_MS / 1000 * 3 ? '⚠ Données non mises à jour depuis ' + t : 'Mis à jour à ' + t;
   }
 
   function refresh() {
@@ -245,11 +447,12 @@
     var now = new Date();
     el('time').textContent = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     el('date').textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    rotate();
     updateFooter();
   }
 
   tick();
-  setInterval(tick, 1000);
+  setInterval(tick, 250);
   refresh();
   setInterval(refresh, REFRESH_MS);
   // Rechargement complet toutes les 6 h pour éviter les fuites mémoire sur un affichage 24/7
